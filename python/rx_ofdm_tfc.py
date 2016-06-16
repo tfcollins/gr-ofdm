@@ -32,7 +32,8 @@ from gnuradio import digital
 
 # from current dir
 from receive_path import receive_path
-from uhd_interface import uhd_receiver
+from uhd_interface_multi import uhd_receiver
+#from uhd_interface import uhd_receiver
 
 import struct, sys
 
@@ -61,6 +62,7 @@ class template_qt(gr.top_block, Qt.QWidget):
         self.settings = Qt.QSettings("GNU Radio", "tempate_qt")
         self.restoreGeometry(self.settings.value("geometry").toByteArray())
 
+
         ############################################
         if(options.rx_freq is not None):
             self.source = uhd_receiver(options.args,
@@ -78,7 +80,9 @@ class template_qt(gr.top_block, Qt.QWidget):
         # occur in the sinks (specifically the UHD sink)
         self.rxpath = receive_path(callback, options)
 
-        self.connect(self.source, self.rxpath)
+        self.connect((self.source,0), (self.rxpath))
+
+        self._num_channels = len(options.args.split(','))-1
         ############################################
 
 
@@ -133,6 +137,49 @@ class template_qt(gr.top_block, Qt.QWidget):
 
         self.v2s = blocks.vector_to_stream(gr.sizeof_gr_complex*1,options.fft_length)
 
+        self.qtgui_freq_sink_x_0 = qtgui.freq_sink_c(
+                1024, #size
+                firdes.WIN_BLACKMAN_hARRIS, #wintype
+                0, #fc
+                samp_rate, #bw
+                "", #name
+                (self._num_channels) #number of inputs
+        )
+        self.qtgui_freq_sink_x_0.set_update_time(0.10)
+        self.qtgui_freq_sink_x_0.set_y_axis(-140, 10)
+        self.qtgui_freq_sink_x_0.set_trigger_mode(qtgui.TRIG_MODE_FREE, 0.0, 0, "")
+        self.qtgui_freq_sink_x_0.enable_autoscale(False)
+        self.qtgui_freq_sink_x_0.enable_grid(False)
+        self.qtgui_freq_sink_x_0.set_fft_average(1.0)
+        self.qtgui_freq_sink_x_0.enable_control_panel(False)
+
+        if not True:
+          self.qtgui_freq_sink_x_0.disable_legend()
+
+        if "complex" == "float" or "complex" == "msg_float":
+          self.qtgui_freq_sink_x_0.set_plot_pos_half(not True)
+
+        labels = ["", "", "", "", "",
+                  "", "", "", "", ""]
+        widths = [1, 1, 1, 1, 1,
+                  1, 1, 1, 1, 1]
+        colors = ["blue", "red", "green", "black", "cyan",
+                  "magenta", "yellow", "dark red", "dark green", "dark blue"]
+        alphas = [1.0, 1.0, 1.0, 1.0, 1.0,
+                  1.0, 1.0, 1.0, 1.0, 1.0]
+        for i in xrange(self._num_channels):
+            if len(labels[i]) == 0:
+                self.qtgui_freq_sink_x_0.set_line_label(i, "Data {0}".format(i))
+            else:
+                self.qtgui_freq_sink_x_0.set_line_label(i, labels[i])
+            self.qtgui_freq_sink_x_0.set_line_width(i, widths[i])
+            self.qtgui_freq_sink_x_0.set_line_color(i, colors[i])
+            self.qtgui_freq_sink_x_0.set_line_alpha(i, alphas[i])
+
+        self._qtgui_freq_sink_x_0_win = sip.wrapinstance(self.qtgui_freq_sink_x_0.pyqwidget(), Qt.QWidget)
+        self.top_layout.addWidget(self._qtgui_freq_sink_x_0_win)
+
+
         ##################################################
         # Connections
         ##################################################
@@ -140,6 +187,11 @@ class template_qt(gr.top_block, Qt.QWidget):
         self.connect( (self.rxpath,0) , (self.v2s, 0))
 
         self.connect((self.v2s, 0), (self.qtgui_const_sink_x_0, 0))
+
+        for o in range(self._num_channels):
+            self.connect((self.source,o+1), (self.qtgui_freq_sink_x_0, o))
+
+
 
     def closeEvent(self, event):
         self.settings = Qt.QSettings("GNU Radio", "tempate_qt")
