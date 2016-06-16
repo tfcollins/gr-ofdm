@@ -53,14 +53,14 @@ class uhd_interface:
             self.u = uhd.usrp_sink(device_addr=args, stream_args=uhd.stream_args('fc32'))
         else:
             self.num_channels = len(args.split(','))
-            # self.u = uhd.usrp_source(device_addr=args, stream_args=uhd.stream_args(cpu_format="fc32",channels=range(self.num_channels)))
-            self.u = uhd.usrp_source(
-        	",".join(("addr0=192.168.20.2,addr1=192.168.50.2", "")),
-        	uhd.stream_args(
-        		cpu_format="fc32",
-        		channels=range(2),
-        	),
-            )
+            self.u = uhd.usrp_source(device_addr=args, stream_args=uhd.stream_args(cpu_format="fc32",channels=range(self.num_channels)))
+            # self.u = uhd.usrp_source(
+        	# ",".join(("addr0=192.168.20.2,addr1=192.168.50.2", "")),
+        	# uhd.stream_args(
+        	# 	cpu_format="fc32",
+        	# 	channels=range(2),
+        	# ),
+            # )
 
         # # Set clock source to external.
         # if(clock_source):
