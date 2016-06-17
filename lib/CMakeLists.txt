@@ -26,6 +26,7 @@ include_directories(${Boost_INCLUDE_DIR})
 link_directories(${Boost_LIBRARY_DIRS})
 
 list(APPEND ofdm_sources
+    ofdm_frame_sink_impl.cc
 )
 
 set(ofdm_sources "${ofdm_sources}" PARENT_SCOPE)

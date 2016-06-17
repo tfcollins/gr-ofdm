@@ -22,5 +22,5 @@
 ########################################################################
 install(FILES
     api.h
-    DESTINATION include/ofdm
+    ofdm_frame_sink.h DESTINATION include/ofdm
 )

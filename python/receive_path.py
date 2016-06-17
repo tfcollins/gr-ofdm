@@ -23,7 +23,7 @@ from gnuradio import gr
 from gnuradio import eng_notation
 from gnuradio import blocks
 #from gnuradio import digital
-import ofdm as ofdm
+import ofdm_mods as ofdm
 from gnuradio import analog
 
 import copy
@@ -33,11 +33,19 @@ import sys
 #                              receive path
 # /////////////////////////////////////////////////////////////////////////////
 
+def gen_multiple_ios(num):
+    io = []
+    for i in range(num):
+        io.append(gr.sizeof_gr_complex)
+    return io
+
 class receive_path(gr.hier_block2):
     def __init__(self, rx_callback, options):
 
+        self.rx_channels = len(options.args.split(','))
+
 	gr.hier_block2.__init__(self, "receive_path",
-				gr.io_signature(1, 1, gr.sizeof_gr_complex),
+				gr.io_signaturev(self.rx_channels, self.rx_channels, gen_multiple_ios(self.rx_channels) ),
 				gr.io_signature(1, 1, gr.sizeof_gr_complex*options.fft_length))
 
 
@@ -47,21 +55,25 @@ class receive_path(gr.hier_block2):
         self._log         = options.log
         self._rx_callback = rx_callback      # this callback is fired when there's a packet available
 
+
         # receiver
-        self.ofdm_rx = ofdm.ofdm_demod(options,
-                                          callback=self._rx_callback)
+        self.ofdm_rx = ofdm.ofdm_demod(options,callback=self._rx_callback)
 
         # Carrier Sensing Blocks
         alpha = 0.001
         thresh = 30   # in dB, will have to adjust
         self.probe = analog.probe_avg_mag_sqrd_c(thresh,alpha)
 
-   	    # Extra output from FFT Demod
-	    #self.null_sink = blocks.null_sink(gr.sizeof_gr_complex*options.fft_length)
-	self.connect((self.ofdm_rx,1), (self,0))
+        # Extra output from FFT Demod
+        self.connect((self.ofdm_rx,1), (self,0))
 
-        self.connect(self, self.ofdm_rx)
+        # Connect probe to output of channel filter
         self.connect((self.ofdm_rx,0), self.probe)
+
+        # Connect USRP to OFDM Demodulator
+        # self.connect(self, self.ofdm_rx)
+        for c in range(self.rx_channels):
+            self.connect((self,c), (self.ofdm_rx,c))
 
         # Display some information about the setup
         if self._verbose:

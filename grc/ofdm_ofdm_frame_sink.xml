@@ -1,0 +1,59 @@
+<?xml version="1.0"?>
+<!--
+###################################################
+##OFDM Frame Sink
+###################################################
+ -->
+<block>
+	<name>OFDM Frame Sink</name>
+    <key>ofdm_ofdm_frame_sink</key>
+    <category>ofdm</category>
+    <import>import ofdm</import>
+	<make>ofdm.ofdm_frame_sink($syms, $vals, $queue, $occ_tones, $ph_gain, $frq_gain)</make>
+	<param>
+		<name>Symbol Points</name>
+		<key>syms</key>
+		<type>complex_vector</type>
+	</param>
+	<param>
+		<name>Symbol Values</name>
+		<key>vals</key>
+		<type>int_vector</type>
+	</param>
+	<param>
+		<name>Message Queue</name>
+		<key>queue</key>
+		<type>raw</type>
+	</param>
+	<param>
+		<name>Occupied Tones</name>
+		<key>occ_tones</key>
+		<type>int</type>
+	</param>
+	<param>
+		<name>Phase Gain</name>
+		<key>ph_gain</key>
+		<value>0.25</value>
+		<type>real</type>
+	</param>
+	<param>
+		<name>Freq. Gain</name>
+		<key>frq_gain</key>
+		<value>0.015625</value>
+		<type>real</type>
+	</param>
+	<sink>
+		<name>in</name>
+		<type>complex</type>
+		<vlen>$occ_tones</vlen>
+	</sink>
+	<sink>
+		<name>flag</name>
+		<type>byte</type>
+	</sink>
+	<source>
+		<name>out</name>
+		<type>complex</type>
+		<vlen>$occ_tones</vlen>
+	</source>
+</block>
