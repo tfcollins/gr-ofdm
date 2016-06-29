@@ -25,7 +25,8 @@ from gnuradio import gr, fft
 from gnuradio import blocks
 #import digital_swig as digital
 from gnuradio import digital as digital
-from gnuradio.digital import ofdm_packet_utils as ofdm_packet_utils
+#from gnuradio.digital import ofdm_packet_utils as ofdm_packet_utils
+import ofdm_packet_utils_whiten as ofdm_packet_utils
 from ofdm_receiver import ofdm_receiver
 import gnuradio.gr.gr_threading as _threading
 import gnuradio.digital.psk as psk
@@ -209,7 +210,7 @@ class ofdm_demod(gr.hier_block2):
 
 	gr.hier_block2.__init__(self, "ofdm_demod",
 				gr.io_signaturev(self.rx_channels, self.rx_channels, gen_multiple_ios(self.rx_channels) ), # Input signature
-				gr.io_signature2(2, 2, gr.sizeof_gr_complex, gr.sizeof_gr_complex*options.fft_length)) # Output signature
+				gr.io_signaturev(2, 2, [gr.sizeof_gr_complex*options.occupied_tones, gr.sizeof_gr_complex*options.occupied_tones])) # Output signature
 
 
         self._rcvd_pktq = gr.msg_queue()          # holds packets from the PHY from all receive channels
@@ -255,7 +256,8 @@ class ofdm_demod(gr.hier_block2):
 
         phgain = 0.25
         frgain = phgain*phgain / 4.0
-        self.ofdm_demod = ofdm.ofdm_frame_sink(rotated_const, range(arity),self._rcvd_pktq,self._occupied_tones,phgain, frgain, 3)
+        # self.ofdm_demod = ofdm.ofdm_frame_sink(rotated_const, range(arity),self._rcvd_pktq,self._occupied_tones,phgain, frgain, 3)
+        self.ofdm_demod = ofdm.ofdm_mrx_frame_sink(rotated_const, range(arity),self._rcvd_pktq,self._occupied_tones,phgain, frgain, 2)
 
 	#self.null_sink = blocks.null_sink(gr.sizeof_gr_complex*self._fft_length)
 
@@ -264,45 +266,60 @@ class ofdm_demod(gr.hier_block2):
         ############# CONNECTIONS ##############
 
         # Connect USRP's to channel filters
-        for c in range(self.rx_channels):
-            self.connect((self,c), (self.ofdm_recv,c))
+        # for c in range(self.rx_channels):
+            # self.connect((self,c), (self.ofdm_recv,c))
+        self.connect((self,0), (self.ofdm_recv,0))
+        self.connect((self,1), (self.ofdm_recv,1))
 
+        # Connect ofdm_receiver to ofdm framer
+        self.connect((self.ofdm_recv, 1), (self.ofdm_demod, 0)) # Connect flag from 1st chain only
+        self.connect((self.ofdm_recv, 0), (self.ofdm_demod, 1)) # Occupied tones
+        self.connect((self.ofdm_recv, 2), (self.ofdm_demod, 2)) # Occupied tones
 
-        self.connect((self.ofdm_recv, 0), (self.ofdm_demod, 0))
-        self.connect((self.ofdm_recv, 1), (self.ofdm_demod, 1))
-        self.connect((self.ofdm_recv, 2), (self, 1))
+        # Connect extra port to null since we dont need it now
+        self.ns = blocks.null_sink(gr.sizeof_char*1)
+        self.connect((self.ofdm_recv,3),self.ns)
 
         # Connect frame sink msg port to debugger
         self.msg_connect((self.ofdm_demod, 'packet'), (self.mdb,'print'))
 
-        # Setup outputs from ofdm receiver to frame sinks
-        output = 3
-        for p in range(self.rx_channels-1):
+        # Connect equalized signals to output
+        self.connect((self.ofdm_demod, 0), (self, 0))
+        self.connect((self.ofdm_demod, 1), (self, 1))
+        # self.ncs1 = blocks.null_sink(gr.sizeof_gr_complex*self._occupied_tones)
+        # self.ncs2 = blocks.null_sink(gr.sizeof_gr_complex*self._occupied_tones)
+        # self.connect((self.ofdm_demod, 0), self.ncs1)
+        # self.connect((self.ofdm_demod, 1), self.ncs2)
 
-            # Add ofdm frame sink
-            object_name_of = 'ofdm_demod_'+str(p)
-            setattr(self, object_name_of, ofdm.ofdm_frame_sink(rotated_const, range(arity),self._rcvd_pktq,self._occupied_tones,phgain, frgain, p+1) )
 
-            # Connect ofdm_receiver to ofdm frame sink
-            self.connect((self.ofdm_recv, output), (getattr(self,object_name_of), 0))
-            output = output + 1
-            self.connect((self.ofdm_recv, output), (getattr(self,object_name_of), 1))
-            output = output + 1
-
-            # Add null sink
-            object_name_ns = 'null_sink_'+str(p)
-            setattr(self, object_name_ns, blocks.null_sink(gr.sizeof_gr_complex*self._occupied_tones))
-
-            # Connect frame sink to null sink
-            self.connect((getattr(self,object_name_of), 0), (getattr(self,object_name_ns), 0))
-
-            # Connect frame sink msg port to debugger
-            self.msg_connect((getattr(self,object_name_of), 'packet'), (self.mdb,'print'))
+        # # Setup outputs from ofdm receiver to frame sinks
+        # output = 3
+        # for p in range(self.rx_channels-1):
+        #
+        #     # Add ofdm frame sink
+        #     object_name_of = 'ofdm_demod_'+str(p)
+        #     setattr(self, object_name_of, ofdm.ofdm_frame_sink(rotated_const, range(arity),self._rcvd_pktq,self._occupied_tones,phgain, frgain, p+1) )
+        #
+        #     # Connect ofdm_receiver to ofdm frame sink
+        #     self.connect((self.ofdm_recv, output), (getattr(self,object_name_of), 0))
+        #     output = output + 1
+        #     self.connect((self.ofdm_recv, output), (getattr(self,object_name_of), 1))
+        #     output = output + 1
+        #
+        #     # Add null sink
+        #     object_name_ns = 'null_sink_'+str(p)
+        #     setattr(self, object_name_ns, blocks.null_sink(gr.sizeof_gr_complex*self._occupied_tones))
+        #
+        #     # Connect frame sink to null sink
+        #     self.connect((getattr(self,object_name_of), 0), (getattr(self,object_name_ns), 0))
+        #
+        #     # Connect frame sink msg port to debugger
+        #     self.msg_connect((getattr(self,object_name_of), 'packet'), (self.mdb,'print'))
 
 
         # added output signature to work around bug, though it might not be a bad
         # thing to export, anyway
-        self.connect(self.ofdm_recv.chan_filt, (self,0))
+        # self.connect(self.ofdm_recv.chan_filt, (self,0))
 
         ############## ##############
 
@@ -360,10 +377,15 @@ class _queue_watcher_thread(_threading.Thread):
 
     def run(self):
         while self.keep_running:
+            # Take packet off queue
             msg = self.rcvd_pktq.delete_head()
+            # Decode packet
             ok, payload = ofdm_packet_utils.unmake_packet(msg.to_string())
+            # Send to callback
             if self.callback:
                 self.callback(ok, payload)
+
+
 
 # Generating known symbols with:
 # i = [2*random.randint(0,1)-1 for i in range(4512)]

@@ -46,7 +46,8 @@ class receive_path(gr.hier_block2):
 
 	gr.hier_block2.__init__(self, "receive_path",
 				gr.io_signaturev(self.rx_channels, self.rx_channels, gen_multiple_ios(self.rx_channels) ),
-				gr.io_signature(1, 1, gr.sizeof_gr_complex*options.fft_length))
+				gr.io_signaturev(2, 2, [gr.sizeof_gr_complex*options.occupied_tones,gr.sizeof_gr_complex*options.occupied_tones]))
+                #,gr.sizeof_gr_complex*options.occupied_tones,]))#gr.sizeof_gr_complex*options.occupied_tones]))
 
 
         options = copy.copy(options)    # make a copy so we can destructively modify
@@ -55,25 +56,28 @@ class receive_path(gr.hier_block2):
         self._log         = options.log
         self._rx_callback = rx_callback      # this callback is fired when there's a packet available
 
-
         # receiver
         self.ofdm_rx = ofdm.ofdm_demod(options,callback=self._rx_callback)
 
-        # Carrier Sensing Blocks
-        alpha = 0.001
-        thresh = 30   # in dB, will have to adjust
-        self.probe = analog.probe_avg_mag_sqrd_c(thresh,alpha)
-
-        # Extra output from FFT Demod
-        self.connect((self.ofdm_rx,1), (self,0))
-
-        # Connect probe to output of channel filter
-        self.connect((self.ofdm_rx,0), self.probe)
+        # # Carrier Sensing Blocks
+        # alpha = 0.001
+        # thresh = 30   # in dB, will have to adjust
+        # self.probe = analog.probe_avg_mag_sqrd_c(thresh,alpha)
 
         # Connect USRP to OFDM Demodulator
-        # self.connect(self, self.ofdm_rx)
-        for c in range(self.rx_channels):
-            self.connect((self,c), (self.ofdm_rx,c))
+        self.connect((self,0), (self.ofdm_rx,0))
+        self.connect((self,1), (self.ofdm_rx,1))
+
+        # Connect probe to output of channel filter
+        # self.connect((self.ofdm_rx,0), self.probe)
+
+        # Extra output from FFT Demod
+        self.connect((self.ofdm_rx,0), (self,0))
+        self.connect((self.ofdm_rx,1), (self,1))
+
+        # Connect equalized signals to output
+        # self.connect((self.ofdm_rx,2), (self,1))
+        # self.connect((self.ofdm_rx,3), (self,2))
 
         # Display some information about the setup
         if self._verbose:

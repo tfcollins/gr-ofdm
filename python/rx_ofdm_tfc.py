@@ -80,10 +80,7 @@ class template_qt(gr.top_block, Qt.QWidget):
         # occur in the sinks (specifically the UHD sink)
         self.rxpath = receive_path(callback, options)
 
-        self.connect((self.source,0), (self.rxpath))
-
         self._num_channels = len(options.args.split(','))-1
-        ############################################
 
 
         ##################################################
@@ -97,7 +94,7 @@ class template_qt(gr.top_block, Qt.QWidget):
         self.qtgui_const_sink_x_0 = qtgui.const_sink_c(
         	1024, #size
         	"", #name
-        	1 #number of inputs
+        	2 #number of inputs
         )
         self.qtgui_const_sink_x_0.set_update_time(0.10)
         self.qtgui_const_sink_x_0.set_y_axis(-2, 2)
@@ -121,7 +118,7 @@ class template_qt(gr.top_block, Qt.QWidget):
                    0, 0, 0, 0, 0]
         alphas = [1.0, 1.0, 1.0, 1.0, 1.0,
                   1.0, 1.0, 1.0, 1.0, 1.0]
-        for i in xrange(1):
+        for i in xrange(2):
             if len(labels[i]) == 0:
                 self.qtgui_const_sink_x_0.set_line_label(i, "Data {0}".format(i))
             else:
@@ -135,7 +132,7 @@ class template_qt(gr.top_block, Qt.QWidget):
         self._qtgui_const_sink_x_0_win = sip.wrapinstance(self.qtgui_const_sink_x_0.pyqwidget(), Qt.QWidget)
         self.top_layout.addWidget(self._qtgui_const_sink_x_0_win)
 
-        self.v2s = blocks.vector_to_stream(gr.sizeof_gr_complex*1,options.fft_length)
+        #########
 
         self.qtgui_freq_sink_x_0 = qtgui.freq_sink_c(
                 1024, #size
@@ -179,17 +176,36 @@ class template_qt(gr.top_block, Qt.QWidget):
         self._qtgui_freq_sink_x_0_win = sip.wrapinstance(self.qtgui_freq_sink_x_0.pyqwidget(), Qt.QWidget)
         self.top_layout.addWidget(self._qtgui_freq_sink_x_0_win)
 
+        #########
+
+        self.v2s = blocks.vector_to_stream(gr.sizeof_gr_complex*1,options.occupied_tones)
+        self.v2s2 = blocks.vector_to_stream(gr.sizeof_gr_complex*1,options.occupied_tones)
+        # self.v2s3 = blocks.vector_to_stream(gr.sizeof_gr_complex*1,options.fft_length)
 
         ##################################################
         # Connections
         ##################################################
 
+        # Connect USRP's to receive path
+        self.connect((self.source,0), (self.rxpath,0))
+        self.connect((self.source,1), (self.rxpath,1))
+
+        # Connect output of receive path for constellation viewing with v2s'
         self.connect( (self.rxpath,0) , (self.v2s, 0))
+        self.connect( (self.rxpath,1) , (self.v2s2, 0))
+        # self.connect( (self.rxpath,2) , (self.v2s3, 0))
 
         self.connect((self.v2s, 0), (self.qtgui_const_sink_x_0, 0))
+        self.connect((self.v2s2, 0), (self.qtgui_const_sink_x_0, 1))
+        # self.connect((self.v2s3, 0), (self.qtgui_const_sink_x_0, 2))
 
-        for o in range(self._num_channels):
-            self.connect((self.source,o+1), (self.qtgui_freq_sink_x_0, o))
+        # Connect USRP to FFT plots
+        # self.connect((self.source,0), (self.qtgui_freq_sink_x_0, 0))
+        # self.connect((self.source,0), (self.qtgui_freq_sink_x_0, 0))
+
+        # print "Adding to freq sinks: "+str(self._num_channels)
+        # for o in range(self._num_channels):
+            # self.connect((self.source,o+1), (self.qtgui_freq_sink_x_0, o))
 
 
 

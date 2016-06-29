@@ -21,7 +21,7 @@
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
-#include "ofdm_frame_sink_impl.h"
+#include "ofdm_mrx_frame_sink_impl.h"
 #include <gnuradio/io_signature.h>
 #include <gnuradio/expj.h>
 #include <gnuradio/math.h>
@@ -30,6 +30,7 @@
 #include <stdexcept>
 #include <iostream>
 #include <string>
+#include <vector>
 
 namespace gr {
 namespace ofdm {
@@ -37,7 +38,7 @@ namespace ofdm {
 #define VERBOSE 0
 
 inline void
-ofdm_frame_sink_impl::enter_search()
+ofdm_mrx_frame_sink_impl::enter_search()
 {
         if(VERBOSE)
                 fprintf(stderr, "@ enter_search\n");
@@ -46,7 +47,7 @@ ofdm_frame_sink_impl::enter_search()
 }
 
 inline void
-ofdm_frame_sink_impl::enter_have_sync()
+ofdm_mrx_frame_sink_impl::enter_have_sync()
 {
         if(VERBOSE)
                 fprintf(stderr, "@ enter_have_sync\n");
@@ -67,7 +68,7 @@ ofdm_frame_sink_impl::enter_have_sync()
 }
 
 inline void
-ofdm_frame_sink_impl::enter_have_header()
+ofdm_mrx_frame_sink_impl::enter_have_header()
 {
         d_state = STATE_HAVE_HEADER;
 
@@ -84,7 +85,7 @@ ofdm_frame_sink_impl::enter_have_header()
 }
 
 char
-ofdm_frame_sink_impl::slicer(const gr_complex x)
+ofdm_mrx_frame_sink_impl::slicer(const gr_complex x)
 {
         unsigned int table_size = d_sym_value_out.size();
         unsigned int min_index = 0;
@@ -101,11 +102,14 @@ ofdm_frame_sink_impl::slicer(const gr_complex x)
         return d_sym_value_out[min_index];
 }
 
-unsigned int ofdm_frame_sink_impl::demapper(const gr_complex *in,
-                                            char *out)
+unsigned int ofdm_mrx_frame_sink_impl::demapper(gr_vector_const_void_star &input_items, char *out)
 {
+
+        size_t num_outputs = input_items.size()-1;
         unsigned int i=0, bytes_produced=0;
         gr_complex carrier;
+        std::vector<gr_complex> sigrots(num_outputs);
+        gr_complex *inChannel;
 
         carrier = gr_expj(d_phase);
 
@@ -122,21 +126,30 @@ unsigned int ofdm_frame_sink_impl::demapper(const gr_complex *in,
                 //while((d_byte_offset < 8) && (i < d_occupied_carriers)) {
                 while((d_byte_offset < 8) && (i < d_subcarrier_map.size())) {
                         //gr_complex sigrot = in[i]*carrier*d_dfe[i];
-                        gr_complex sigrot = in[d_subcarrier_map[i]]*carrier*d_dfe[i];
 
-                        if(d_derotated_output != NULL) {
-                                d_derotated_output[i] = sigrot;
+                        // gr_complex sigrot = in[d_subcarrier_map[i]]*carrier*d_dfe[i];
+                        for (size_t c=0; c<num_outputs; c++)
+                        {
+                          inChannel = (gr_complex*) input_items[c+1];
+                          sigrots[c] = inChannel[d_subcarrier_map[i]]*carrier*d_dfe[i];
+                          // Output if connected
+                          if(d_derotated_outputs[c] != NULL)
+                          {
+                            gr_complex *o = d_derotated_outputs[c];
+                            o[i] = sigrots[c];
+                          }
                         }
 
-                        char bits = slicer(sigrot);
+                        // REMAINING IS ONLY TO MAINTAIN DFE & CARRIER ESTIMATES
+                        char bits = slicer(sigrots[0]);
 
                         gr_complex closest_sym = d_sym_position[bits];
 
-                        accum_error += sigrot * conj(closest_sym);
+                        accum_error += sigrots[0] * conj(closest_sym);
 
                         // FIX THE FOLLOWING STATEMENT
-                        if(norm(sigrot)> 0.001)
-                                d_dfe[i] +=  d_eq_gain*(closest_sym/sigrot-d_dfe[i]);
+                        if(norm(sigrots[0])> 0.001)
+                                d_dfe[i] +=  d_eq_gain*(closest_sym/sigrots[0]-d_dfe[i]);
 
                         i++;
 
@@ -180,36 +193,64 @@ unsigned int ofdm_frame_sink_impl::demapper(const gr_complex *in,
 }
 
 
-ofdm_frame_sink::sptr
-ofdm_frame_sink::make(const std::vector<gr_complex> &sym_position,
+std::vector<int>
+get_in_sizeofs(size_t item_size, int vlen, int num_inputs)
+{
+        std::vector<int> in_sizeofs;
+        // Add flag input
+        in_sizeofs.push_back(sizeof(char));
+        // Add rest for antennas
+        for(unsigned int i = 0; i < num_inputs; i++)
+        {
+            in_sizeofs.push_back(item_size*vlen);
+        }
+        return in_sizeofs;
+}
+
+std::vector<int>
+get_out_sizeofs(size_t item_size, int vlen, int num_inputs)
+{
+        std::vector<int> out_sizeofs;
+        // Add rest for antennas
+        for(unsigned int i = 0; i < num_inputs; i++)
+        {
+                out_sizeofs.push_back(item_size*vlen);
+        }
+        return out_sizeofs;
+}
+
+ofdm_mrx_frame_sink::sptr
+ofdm_mrx_frame_sink::make(const std::vector<gr_complex> &sym_position,
                       const std::vector<char> &sym_value_out,
                       msg_queue::sptr target_queue,
                       int occupied_carriers,
-                      float phase_gain, float freq_gain, int sink_number)
+                      float phase_gain, float freq_gain, int num_inputs)
 {
         return gnuradio::get_initial_sptr
-                       (new ofdm_frame_sink_impl(sym_position, sym_value_out,
+                       (new ofdm_mrx_frame_sink_impl(sym_position, sym_value_out,
                                                  target_queue, occupied_carriers,
-                                                 phase_gain, freq_gain, sink_number));
+                                                 phase_gain, freq_gain, num_inputs));
 }
 
-ofdm_frame_sink_impl::ofdm_frame_sink_impl(const std::vector<gr_complex> &sym_position,
+ofdm_mrx_frame_sink_impl::ofdm_mrx_frame_sink_impl(const std::vector<gr_complex> &sym_position,
                                            const std::vector<char> &sym_value_out,
                                            msg_queue::sptr target_queue,
                                            int occupied_carriers,
                                            float phase_gain, float freq_gain,
-                                           int sink_number)
+                                           int num_inputs)
         : sync_block("ofdm_frame_sink",
-                     io_signature::make2(2, 2, sizeof(gr_complex)*occupied_carriers, sizeof(char)),
-                     io_signature::make(1, 1, sizeof(gr_complex)*occupied_carriers)),
+                     io_signature::makev(num_inputs+1, num_inputs+1, get_in_sizeofs( sizeof(gr_complex), occupied_carriers, num_inputs) ),
+                     io_signature::makev(num_inputs, num_inputs, get_out_sizeofs( sizeof(gr_complex), occupied_carriers, num_inputs) )),
         d_target_queue(target_queue), d_occupied_carriers(occupied_carriers),
         d_byte_offset(0), d_partial_byte(0),
         d_resid(0), d_nresid(0),d_phase(0),d_freq(0),
         d_phase_gain(phase_gain),d_freq_gain(freq_gain),
         d_eq_gain(0.05),
-        d_sink_number(sink_number)
+        d_sink_number(1)
 {
-        std::cout<<"sink_number: "<<sink_number<<'\n';
+        std::cout<<"sink_number: "<<d_sink_number<<'\n';
+
+
 
         // Setup Message Port
         message_port_register_out(pmt::mp("packet"));
@@ -265,7 +306,7 @@ ofdm_frame_sink_impl::ofdm_frame_sink_impl(const std::vector<gr_complex> &sym_po
 
         // make sure we stay in the limit currently imposed by the occupied_carriers
         if(d_subcarrier_map.size() > (size_t)d_occupied_carriers) {
-                throw std::invalid_argument("ofdm_frame_sink_impl: subcarriers allocated exceeds size of occupied carriers");
+                throw std::invalid_argument("ofdm_mrx_frame_sink_impl: subcarriers allocated exceeds size of occupied carriers");
         }
 
         d_bytes_out = new char[d_occupied_carriers];
@@ -277,13 +318,13 @@ ofdm_frame_sink_impl::ofdm_frame_sink_impl(const std::vector<gr_complex> &sym_po
         enter_search();
 }
 
-ofdm_frame_sink_impl::~ofdm_frame_sink_impl()
+ofdm_mrx_frame_sink_impl::~ofdm_mrx_frame_sink_impl()
 {
         delete [] d_bytes_out;
 }
 
 bool
-ofdm_frame_sink_impl::set_sym_value_out(const std::vector<gr_complex> &sym_position,
+ofdm_mrx_frame_sink_impl::set_sym_value_out(const std::vector<gr_complex> &sym_position,
                                         const std::vector<char> &sym_value_out)
 {
         if(sym_position.size() != sym_value_out.size())
@@ -300,7 +341,7 @@ ofdm_frame_sink_impl::set_sym_value_out(const std::vector<gr_complex> &sym_posit
 }
 
 void
-ofdm_frame_sink_impl::send_message(char messages_data[MAX_PKT_LEN], int length)
+ofdm_mrx_frame_sink_impl::send_message(char messages_data[MAX_PKT_LEN], int length)
 {
     std::cout<<"Creator: "<<d_sink_number<<"\n";
     char st[2];
@@ -316,20 +357,30 @@ ofdm_frame_sink_impl::send_message(char messages_data[MAX_PKT_LEN], int length)
 }
 
 int
-ofdm_frame_sink_impl::work(int noutput_items,
+ofdm_mrx_frame_sink_impl::work(int noutput_items,
                            gr_vector_const_void_star &input_items,
                            gr_vector_void_star &output_items)
 {
-        const gr_complex *in = (const gr_complex*)input_items[0];
-        const char *sig = (const char*)input_items[1];
+        const char *sig = (const char*) input_items[0];
+        // const gr_complex *in = (const gr_complex*)input_items[0];
+        // const gr_complex *in2 = (const gr_complex*)input_items[1];
         unsigned int j = 0;
         unsigned int bytes=0;
 
         // If the output is connected, send it the derotated symbols
+        d_derotated_outputs.clear();// reset pointers
         if(output_items.size() >= 1)
+        {
                 d_derotated_output = (gr_complex *)output_items[0];
+                for (size_t k=0;k<output_items.size();k++)
+                  d_derotated_outputs.push_back((gr_complex *)output_items[k]);
+        }
         else
+        {
                 d_derotated_output = NULL;
+                for (size_t k=0;k<output_items.size();k++)
+                  d_derotated_outputs.push_back(NULL);
+        }
 
         if(VERBOSE)
                 fprintf(stderr,">>> Entering state machine\n");
@@ -347,7 +398,7 @@ ofdm_frame_sink_impl::work(int noutput_items,
         case STATE_HAVE_SYNC:
                 // only demod after getting the preamble signal; otherwise, the
                 // equalizer taps will screw with the PLL performance
-                bytes = demapper(&in[0], d_bytes_out);
+                bytes = demapper(input_items, d_bytes_out);
 
                 if(VERBOSE) {
                         if(sig[0])
@@ -398,7 +449,7 @@ ofdm_frame_sink_impl::work(int noutput_items,
                 break;
 
         case STATE_HAVE_HEADER:
-                bytes = demapper(&in[0], d_bytes_out);
+                bytes = demapper(input_items, d_bytes_out);
 
                 if(VERBOSE) {
                         if(sig[0])

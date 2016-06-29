@@ -48,7 +48,7 @@ def gen_multiple_ios(num):
     return io
 
 def gen_multiple_ios_out(num,occupied_tones,fft_length):
-    io = [gr.sizeof_gr_complex*occupied_tones, gr.sizeof_char, gr.sizeof_gr_complex*fft_length]
+    io = [gr.sizeof_gr_complex*occupied_tones, gr.sizeof_char]
     for i in range(num):
         io.append(gr.sizeof_gr_complex*occupied_tones)
         io.append(gr.sizeof_char)
@@ -84,7 +84,7 @@ class ofdm_receiver(gr.hier_block2):
 
 	gr.hier_block2.__init__(self, "ofdm_receiver",
 				gr.io_signaturev(self.rx_channels, self.rx_channels, gen_multiple_ios(self.rx_channels)), # Input signature
-                gr.io_signaturev(self.rx_channels*2+1, self.rx_channels*2+1, gen_multiple_ios_out(self.rx_channels-1,occupied_tones,fft_length) )) # Output signature
+                gr.io_signaturev(self.rx_channels*2, self.rx_channels*2, gen_multiple_ios_out(self.rx_channels-1,occupied_tones,fft_length) )) # Output signature
 
         bw = (float(occupied_tones) / float(fft_length)) / 2.0
         tb = bw*0.08
@@ -146,6 +146,7 @@ class ofdm_receiver(gr.hier_block2):
         self.fft_demod = gr_fft.fft_vcc(fft_length, True, win, True)
         self.ofdm_frame_acq = digital.ofdm_frame_acquisition(occupied_tones,fft_length,cp_length, ks[0])
 
+        # Setup Connections for synchronization path
         self.connect((self,0), self.chan_filt)                        # filter the input channel
         self.connect(self.chan_filt, self.ofdm_sync)                  # into the synchronization alg.
         self.connect((self.ofdm_sync,0), self.nco, (self.sigmix,1))   # use sync freq. offset output to derotate input signal
@@ -160,16 +161,22 @@ class ofdm_receiver(gr.hier_block2):
         self.connect((self.ofdm_frame_acq,1), (self,1))               # frame and symbol timing, and equalization
 
         # Debugging
-        self.connect(self.fft_demod, (self,2)) # Output unequalized signal
+        # self.connect(self.fft_demod, (self,2)) # Output unequalized signal
+
+        ############ BLOCK OUTPUTS
+        # ofdm_frame_acquisition (0,occupied carriers)
+        # ofdm_frame_acquisition (1,flag)
+        # .... Repeats for each input
+        ##########################
 
 
         # Add additional channels for each radio
-        output = 3
+        output = 2
         for p in range(1,self.rx_channels):
-            print p
+            print "ofdm_receiver: "+str(p)
             # Add channel filter
             object_name_cf = 'chan_filter_'+str(p)
-            setattr(self, object_name_cf, copy.copy(self.chan_filt) )
+            setattr(self, object_name_cf, filter.fft_filter_ccc(1, chan_coeffs) )
 
             # Connect hier to channel filter
             self.connect((self,p), (getattr(self,object_name_cf), 0))

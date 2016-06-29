@@ -1,24 +1,24 @@
 #!/usr/bin/env python
 #
 # Copyright 2005,2006,2011,2013 Free Software Foundation, Inc.
-# 
+#
 # This file is part of GNU Radio
-# 
+#
 # GNU Radio is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 3, or (at your option)
 # any later version.
-# 
+#
 # GNU Radio is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with GNU Radio; see the file COPYING.  If not, write to
 # the Free Software Foundation, Inc., 51 Franklin Street,
 # Boston, MA 02110-1301, USA.
-# 
+#
 
 from gnuradio import gr
 from gnuradio import eng_notation
@@ -39,7 +39,7 @@ class my_top_block(gr.top_block):
 
         if(options.tx_freq is not None):
             self.sink = uhd_transmitter(options.args,
-                                        options.bandwidth, options.tx_freq, 
+                                        options.bandwidth, options.tx_freq,
                                         options.lo_offset, options.tx_gain,
                                         options.spec, options.antenna,
                                         options.clock_source, options.verbose)
@@ -53,7 +53,7 @@ class my_top_block(gr.top_block):
         self.txpath = transmit_path(options)
 
         self.connect(self.txpath, self.sink)
-        
+
 # /////////////////////////////////////////////////////////////////////////////
 #                                   main
 # /////////////////////////////////////////////////////////////////////////////
@@ -84,13 +84,13 @@ def main():
 
     # build the graph
     tb = my_top_block(options)
-    
+
     r = gr.enable_realtime_scheduling()
     if r != gr.RT_OK:
         print "Warning: failed to enable realtime scheduling"
 
     tb.start()                       # start flow graph
-    
+
     # generate and send packets
     nbytes = int(1e6 * options.megabytes)
     n = 0
@@ -99,23 +99,31 @@ def main():
 
     while n < nbytes:
         if options.from_file is None:
-            data = (pkt_size - 2) * chr(pktno & 0xff) 
+            data = (pkt_size - 2) * chr(pktno & 0xff)
         else:
             data = source_file.read(pkt_size - 2)
             if data == '':
                 break;
 
-        payload = struct.pack('!H', pktno & 0xffff) + data
+        payload = struct.pack('!H', pktno & 0xffff) + data # Convert all data to bytes and whiten packet number
         send_pkt(payload)
         n += len(payload)
-        sys.stderr.write('.')
+        print n
+
+        # sys.stderr.write('.')
+        percent = n/float(nbytes)*100
+        # sys.stderr.write(str(n)+' of '+str(nbytes)+' ['+str(percent)+'%%]\r')
+        # sys.stderr.flush()
         if options.discontinuous and pktno % 5 == 4:
             time.sleep(1)
         pktno += 1
-        
+
     send_pkt(eof=True)
     time.sleep(2)               # allow time for queued packets to be sent
     tb.wait()                   # wait for it to finish
+
+    # Default Packet Info
+    # - Payload: 400 Characters (398 Data + 2 Header)
 
 if __name__ == '__main__':
     try:

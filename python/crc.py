@@ -1,4 +1,5 @@
-# Copyright 2011 Free Software Foundation, Inc.
+#
+# Copyright 2005,2007,2011 Free Software Foundation, Inc.
 #
 # This file is part of GNU Radio
 #
@@ -16,8 +17,23 @@
 # along with GNU Radio; see the file COPYING.  If not, write to
 # the Free Software Foundation, Inc., 51 Franklin Street,
 # Boston, MA 02110-1301, USA.
+#
 
-install(FILES
-    ofdm_ofdm_frame_sink.xml
-    ofdm_ofdm_mrx_frame_sink.xml DESTINATION share/gnuradio/grc/blocks
-)
+from gnuradio import gru
+from gnuradio import digital
+#import digital_swig as digital
+import struct
+
+def gen_and_append_crc32(s):
+    crc = digital.crc32(s)
+    return s + struct.pack(">I", gru.hexint(crc) & 0xFFFFFFFF)
+
+def check_crc32(s):
+    if len(s) < 4:
+        return (False, '')
+    msg = s[:-4]
+    #print "msg = '%s'" % (msg,)
+    actual = digital.crc32(msg)
+    (expected,) = struct.unpack(">I", s[-4:])
+    # print "actual =", hex(actual), "expected =", hex(expected)
+    return (actual == expected, msg)
