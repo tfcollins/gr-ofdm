@@ -35,35 +35,28 @@ from receive_path import receive_path
 from uhd_interface_multi import uhd_receiver
 #from uhd_interface import uhd_receiver
 
+import visuals
+
 import struct, sys
 
-class template_qt(gr.top_block, Qt.QWidget):
+class ofdm_multichannel_receiver(gr.top_block, Qt.QWidget):
 
     def __init__(self,callback,options):
-        gr.top_block.__init__(self, "Tempate Qt")
-        Qt.QWidget.__init__(self)
-        self.setWindowTitle("Tempate Qt")
-        try:
-            self.setWindowIcon(Qt.QIcon.fromTheme('gnuradio-grc'))
-        except:
-            pass
-        self.top_scroll_layout = Qt.QVBoxLayout()
-        self.setLayout(self.top_scroll_layout)
-        self.top_scroll = Qt.QScrollArea()
-        self.top_scroll.setFrameStyle(Qt.QFrame.NoFrame)
-        self.top_scroll_layout.addWidget(self.top_scroll)
-        self.top_scroll.setWidgetResizable(True)
-        self.top_widget = Qt.QWidget()
-        self.top_scroll.setWidget(self.top_widget)
-        self.top_layout = Qt.QVBoxLayout(self.top_widget)
-        self.top_grid_layout = Qt.QGridLayout()
-        self.top_layout.addLayout(self.top_grid_layout)
 
-        self.settings = Qt.QSettings("GNU Radio", "tempate_qt")
-        self.restoreGeometry(self.settings.value("geometry").toByteArray())
+        ##################################################
+        # Variables
+        ##################################################
+        self.samp_rate = samp_rate = 32000
+        self.num_channels = len(options.args.split(','))
+        print "System is setup with "+str(self.num_channels)+" receive chain(s)"
 
+        # Add all visuals
+        visuals.add_visuals(self)
 
-        ############################################
+        ##################################################
+        # Blocks
+        ##################################################
+
         if(options.rx_freq is not None):
             self.source = uhd_receiver(options.args,
                                        options.bandwidth, options.rx_freq,
@@ -78,139 +71,38 @@ class template_qt(gr.top_block, Qt.QWidget):
         # Set up receive path
         # do this after for any adjustments to the options that may
         # occur in the sinks (specifically the UHD sink)
-        self.rxpath = receive_path(callback, options)
-
-        self._num_channels = len(options.args.split(','))-1
-
-
-        ##################################################
-        # Variables
-        ##################################################
-        self.samp_rate = samp_rate = 32000
-
-        ##################################################
-        # Blocks
-        ##################################################
-        self.qtgui_const_sink_x_0 = qtgui.const_sink_c(
-        	1024, #size
-        	"", #name
-        	2 #number of inputs
-        )
-        self.qtgui_const_sink_x_0.set_update_time(0.10)
-        self.qtgui_const_sink_x_0.set_y_axis(-2, 2)
-        self.qtgui_const_sink_x_0.set_x_axis(-2, 2)
-        self.qtgui_const_sink_x_0.set_trigger_mode(qtgui.TRIG_MODE_FREE, qtgui.TRIG_SLOPE_POS, 0.0, 0, "")
-        self.qtgui_const_sink_x_0.enable_autoscale(False)
-        self.qtgui_const_sink_x_0.enable_grid(False)
-
-        if not True:
-          self.qtgui_const_sink_x_0.disable_legend()
-
-        labels = ["", "", "", "", "",
-                  "", "", "", "", ""]
-        widths = [1, 1, 1, 1, 1,
-                  1, 1, 1, 1, 1]
-        colors = ["blue", "red", "red", "red", "red",
-                  "red", "red", "red", "red", "red"]
-        styles = [0, 0, 0, 0, 0,
-                  0, 0, 0, 0, 0]
-        markers = [0, 0, 0, 0, 0,
-                   0, 0, 0, 0, 0]
-        alphas = [1.0, 1.0, 1.0, 1.0, 1.0,
-                  1.0, 1.0, 1.0, 1.0, 1.0]
-        for i in xrange(2):
-            if len(labels[i]) == 0:
-                self.qtgui_const_sink_x_0.set_line_label(i, "Data {0}".format(i))
-            else:
-                self.qtgui_const_sink_x_0.set_line_label(i, labels[i])
-            self.qtgui_const_sink_x_0.set_line_width(i, widths[i])
-            self.qtgui_const_sink_x_0.set_line_color(i, colors[i])
-            self.qtgui_const_sink_x_0.set_line_style(i, styles[i])
-            self.qtgui_const_sink_x_0.set_line_marker(i, markers[i])
-            self.qtgui_const_sink_x_0.set_line_alpha(i, alphas[i])
-
-        self._qtgui_const_sink_x_0_win = sip.wrapinstance(self.qtgui_const_sink_x_0.pyqwidget(), Qt.QWidget)
-        self.top_layout.addWidget(self._qtgui_const_sink_x_0_win)
-
-        #########
-
-        self.qtgui_freq_sink_x_0 = qtgui.freq_sink_c(
-                1024, #size
-                firdes.WIN_BLACKMAN_hARRIS, #wintype
-                0, #fc
-                samp_rate, #bw
-                "", #name
-                (self._num_channels) #number of inputs
-        )
-        self.qtgui_freq_sink_x_0.set_update_time(0.10)
-        self.qtgui_freq_sink_x_0.set_y_axis(-140, 10)
-        self.qtgui_freq_sink_x_0.set_trigger_mode(qtgui.TRIG_MODE_FREE, 0.0, 0, "")
-        self.qtgui_freq_sink_x_0.enable_autoscale(False)
-        self.qtgui_freq_sink_x_0.enable_grid(False)
-        self.qtgui_freq_sink_x_0.set_fft_average(1.0)
-        self.qtgui_freq_sink_x_0.enable_control_panel(False)
-
-        if not True:
-          self.qtgui_freq_sink_x_0.disable_legend()
-
-        if "complex" == "float" or "complex" == "msg_float":
-          self.qtgui_freq_sink_x_0.set_plot_pos_half(not True)
-
-        labels = ["", "", "", "", "",
-                  "", "", "", "", ""]
-        widths = [1, 1, 1, 1, 1,
-                  1, 1, 1, 1, 1]
-        colors = ["blue", "red", "green", "black", "cyan",
-                  "magenta", "yellow", "dark red", "dark green", "dark blue"]
-        alphas = [1.0, 1.0, 1.0, 1.0, 1.0,
-                  1.0, 1.0, 1.0, 1.0, 1.0]
-        for i in xrange(self._num_channels):
-            if len(labels[i]) == 0:
-                self.qtgui_freq_sink_x_0.set_line_label(i, "Data {0}".format(i))
-            else:
-                self.qtgui_freq_sink_x_0.set_line_label(i, labels[i])
-            self.qtgui_freq_sink_x_0.set_line_width(i, widths[i])
-            self.qtgui_freq_sink_x_0.set_line_color(i, colors[i])
-            self.qtgui_freq_sink_x_0.set_line_alpha(i, alphas[i])
-
-        self._qtgui_freq_sink_x_0_win = sip.wrapinstance(self.qtgui_freq_sink_x_0.pyqwidget(), Qt.QWidget)
-        self.top_layout.addWidget(self._qtgui_freq_sink_x_0_win)
-
-        #########
-
-        self.v2s = blocks.vector_to_stream(gr.sizeof_gr_complex*1,options.occupied_tones)
-        self.v2s2 = blocks.vector_to_stream(gr.sizeof_gr_complex*1,options.occupied_tones)
-        # self.v2s3 = blocks.vector_to_stream(gr.sizeof_gr_complex*1,options.fft_length)
+        self.rxpath = receive_path(callback, options, self.num_channels)
 
         ##################################################
         # Connections
         ##################################################
 
-        # Connect USRP's to receive path
-        self.connect((self.source,0), (self.rxpath,0))
-        self.connect((self.source,1), (self.rxpath,1))
+        for p in range(self.num_channels):
+            # Connect USRP's to receive path
+            self.connect((self.source,p), (self.rxpath,p))
 
-        # Connect output of receive path for constellation viewing with v2s'
-        self.connect( (self.rxpath,0) , (self.v2s, 0))
-        self.connect( (self.rxpath,1) , (self.v2s2, 0))
-        # self.connect( (self.rxpath,2) , (self.v2s3, 0))
+            # Add v2s
+            object_name_v2s = 'vec2stream_'+str(p)
+            setattr(self, object_name_v2s, blocks.vector_to_stream(gr.sizeof_gr_complex*1,options.occupied_tones))
 
-        self.connect((self.v2s, 0), (self.qtgui_const_sink_x_0, 0))
-        self.connect((self.v2s2, 0), (self.qtgui_const_sink_x_0, 1))
-        # self.connect((self.v2s3, 0), (self.qtgui_const_sink_x_0, 2))
+            # Connect receive path to v2s
+            self.connect((self.rxpath,p), (getattr(self,object_name_v2s), 0))
+
+            # Connect v2s to Constellation
+            self.connect( (getattr(self,object_name_v2s), 0), (self.qtgui_const_sink_x_0, p))
 
         # Connect USRP to FFT plots
         # self.connect((self.source,0), (self.qtgui_freq_sink_x_0, 0))
         # self.connect((self.source,0), (self.qtgui_freq_sink_x_0, 0))
 
-        # print "Adding to freq sinks: "+str(self._num_channels)
-        # for o in range(self._num_channels):
+        # print "Adding to freq sinks: "+str(self.num_channels)
+        # for o in range(self.num_channels):
             # self.connect((self.source,o+1), (self.qtgui_freq_sink_x_0, o))
 
 
 
     def closeEvent(self, event):
-        self.settings = Qt.QSettings("GNU Radio", "tempate_qt")
+        self.settings = Qt.QSettings("GNU Radio", "ofdm_multichannel_receiver")
         self.settings.setValue("geometry", self.saveGeometry())
         event.accept()
 
@@ -224,7 +116,7 @@ class template_qt(gr.top_block, Qt.QWidget):
         self.blocks_throttle_0.set_sample_rate(self.samp_rate)
 
 
-def main(top_block_cls=template_qt, options=None):
+def main(top_block_cls=ofdm_multichannel_receiver, options=None):
 
     global n_rcvd, n_right
 

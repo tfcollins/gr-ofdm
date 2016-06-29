@@ -33,20 +33,21 @@ import sys
 #                              receive path
 # /////////////////////////////////////////////////////////////////////////////
 
-def gen_multiple_ios(num):
+def gen_multiple_ios(num,vlen):
     io = []
     for i in range(num):
-        io.append(gr.sizeof_gr_complex)
+        io.append(gr.sizeof_gr_complex*vlen)
     return io
 
 class receive_path(gr.hier_block2):
-    def __init__(self, rx_callback, options):
+    def __init__(self, rx_callback, options, num_channels):
 
-        self.rx_channels = len(options.args.split(','))
+        self.num_channels = num_channels#len(options.args.split(','))
 
 	gr.hier_block2.__init__(self, "receive_path",
-				gr.io_signaturev(self.rx_channels, self.rx_channels, gen_multiple_ios(self.rx_channels) ),
-				gr.io_signaturev(2, 2, [gr.sizeof_gr_complex*options.occupied_tones,gr.sizeof_gr_complex*options.occupied_tones]))
+				gr.io_signaturev(self.num_channels, self.num_channels, gen_multiple_ios(self.num_channels,1) ),
+				gr.io_signaturev(self.num_channels, self.num_channels, gen_multiple_ios(self.num_channels,options.occupied_tones) )) 
+                #[gr.sizeof_gr_complex*options.occupied_tones,gr.sizeof_gr_complex*options.occupied_tones]))
                 #,gr.sizeof_gr_complex*options.occupied_tones,]))#gr.sizeof_gr_complex*options.occupied_tones]))
 
 
@@ -57,23 +58,25 @@ class receive_path(gr.hier_block2):
         self._rx_callback = rx_callback      # this callback is fired when there's a packet available
 
         # receiver
-        self.ofdm_rx = ofdm.ofdm_demod(options,callback=self._rx_callback)
+        self.ofdm_rx = ofdm.ofdm_demod(options,self.num_channels,callback=self._rx_callback)
 
         # # Carrier Sensing Blocks
         # alpha = 0.001
         # thresh = 30   # in dB, will have to adjust
         # self.probe = analog.probe_avg_mag_sqrd_c(thresh,alpha)
 
-        # Connect USRP to OFDM Demodulator
-        self.connect((self,0), (self.ofdm_rx,0))
-        self.connect((self,1), (self.ofdm_rx,1))
+        # Make Connections
+        output = 0
+        for p in range(self.num_channels):
+
+            # Connect USRP to OFDM Demodulator
+            self.connect((self,p), (self.ofdm_rx,p))
+
+            # Extra output from FFT Demod
+            self.connect((self.ofdm_rx,p), (self,p))
 
         # Connect probe to output of channel filter
         # self.connect((self.ofdm_rx,0), self.probe)
-
-        # Extra output from FFT Demod
-        self.connect((self.ofdm_rx,0), (self,0))
-        self.connect((self.ofdm_rx,1), (self,1))
 
         # Connect equalized signals to output
         # self.connect((self.ofdm_rx,2), (self,1))
