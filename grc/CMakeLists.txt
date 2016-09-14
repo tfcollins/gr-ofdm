@@ -16,8 +16,9 @@
 # along with GNU Radio; see the file COPYING.  If not, write to
 # the Free Software Foundation, Inc., 51 Franklin Street,
 # Boston, MA 02110-1301, USA.
-
 install(FILES
     ofdm_ofdm_frame_sink.xml
-    ofdm_ofdm_mrx_frame_sink.xml DESTINATION share/gnuradio/grc/blocks
+    ofdm_ofdm_mrx_frame_sink.xml
+    #ofdm_frame_logger.xml
+    DESTINATION share/gnuradio/grc/blocks
 )

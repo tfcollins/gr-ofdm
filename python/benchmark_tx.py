@@ -38,6 +38,7 @@ class my_top_block(gr.top_block):
         gr.top_block.__init__(self)
 
         if(options.tx_freq is not None):
+            options.bandwidth = 100000000/16
             self.sink = uhd_transmitter(options.args,
                                         options.bandwidth, options.tx_freq,
                                         options.lo_offset, options.tx_gain,
@@ -108,12 +109,12 @@ def main():
         payload = struct.pack('!H', pktno & 0xffff) + data # Convert all data to bytes and whiten packet number
         send_pkt(payload)
         n += len(payload)
-        print n
+        # print n
 
         # sys.stderr.write('.')
         percent = n/float(nbytes)*100
-        # sys.stderr.write(str(n)+' of '+str(nbytes)+' ['+str(percent)+'%%]\r')
-        # sys.stderr.flush()
+        sys.stderr.write(str(n)+' of '+str(nbytes)+' ['+str(percent)+'%%]\r')
+        sys.stderr.flush()
         if options.discontinuous and pktno % 5 == 4:
             time.sleep(1)
         pktno += 1

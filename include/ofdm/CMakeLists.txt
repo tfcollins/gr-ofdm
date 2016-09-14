@@ -23,5 +23,7 @@
 install(FILES
     api.h
     ofdm_frame_sink.h
-    ofdm_mrx_frame_sink.h DESTINATION include/ofdm
+    ofdm_mrx_frame_sink.h
+    #frame_logger.h
+    DESTINATION include/ofdm
 )

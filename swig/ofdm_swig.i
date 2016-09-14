@@ -10,6 +10,7 @@
 %{
 #include "ofdm/ofdm_frame_sink.h"
 #include "ofdm/ofdm_mrx_frame_sink.h"
+//#include "ofdm/frame_logger.h"
 %}
 
 
@@ -17,3 +18,6 @@
 GR_SWIG_BLOCK_MAGIC2(ofdm, ofdm_frame_sink);
 %include "ofdm/ofdm_mrx_frame_sink.h"
 GR_SWIG_BLOCK_MAGIC2(ofdm, ofdm_mrx_frame_sink);
+
+//%include "ofdm/frame_logger.h"
+//GR_SWIG_BLOCK_MAGIC2(ofdm, frame_logger);

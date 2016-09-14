@@ -173,8 +173,9 @@ def unmake_packet(whitened_payload_with_crc, whitener_offset=0, dewhitening=1):
         whitener_offset: offset into whitener string to use [0-16)
         dewhitening: Turn whitener on or off (bool)
     """
-    
-    print "dewhitening: "+str(dewhitening)
+
+    # Debug TFC
+    # print "dewhitening: "+str(dewhitening)
 
     if dewhitening:
         payload_with_crc = dewhiten(whitened_payload_with_crc, whitener_offset)

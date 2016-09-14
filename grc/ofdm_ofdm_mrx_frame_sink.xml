@@ -9,16 +9,17 @@
     <key>ofdm_ofdm_mrx_frame_sink</key>
     <category>ofdm</category>
     <import>import ofdm</import>
-	<make>ofdm.ofdm_mrx_frame_sink($syms, $vals, $queue, $occ_tones, $ph_gain, $frq_gain)</make>
+	<import>import pmt</import>
+	<make>ofdm.ofdm_mrx_frame_sink($syms, $vals, $queue, $occ_tones, $ph_gain, $frq_gain, $inputs)</make>
 	<param>
 		<name>Symbol Points</name>
 		<key>syms</key>
-		<type>complex_vector</type>
+		<type>raw</type><!-- <type>complex_vector</type> -->
 	</param>
 	<param>
 		<name>Symbol Values</name>
 		<key>vals</key>
-		<type>int_vector</type>
+		<type>raw</type><!-- <type>int_vector</type> -->
 	</param>
 	<param>
 		<name>Message Queue</name>
@@ -42,28 +43,32 @@
 		<value>0.015625</value>
 		<type>real</type>
 	</param>
-	<sink>
-		<name>in0</name>
-		<type>complex</type>
-		<vlen>$occ_tones</vlen>
-	</sink>
-	<sink>
-		<name>in1</name>
-		<type>complex</type>
-		<vlen>$occ_tones</vlen>
-	</sink>
+	<param>
+		<name>Ports</name>
+		<key>inputs</key>
+		<value>2</value>
+		<type>int</type>
+	</param>
+
 	<sink>
 		<name>flag</name>
 		<type>byte</type>
 	</sink>
-	<source>
-		<name>out0</name>
+	<sink>
+		<name>in</name>
 		<type>complex</type>
 		<vlen>$occ_tones</vlen>
+		<nports>$inputs</nports>
+	</sink>
+
+	<source>
+		<name>out</name>
+		<type>complex</type>
+		<vlen>$occ_tones</vlen>
+		<nports>$inputs</nports>
 	</source>
 	<source>
-		<name>out1</name>
-		<type>complex</type>
-		<vlen>$occ_tones</vlen>
+		<name>packet</name>
+		<type>message</type>
 	</source>
 </block>

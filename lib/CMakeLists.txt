@@ -24,11 +24,11 @@ include(GrPlatform) #define LIB_SUFFIX
 
 include_directories(${Boost_INCLUDE_DIR})
 link_directories(${Boost_LIBRARY_DIRS})
-
 list(APPEND ofdm_sources
     ofdm_frame_sink_impl.cc
     ofdm_mrx_frame_sink_impl.cc
-)
+    #frame_logger_impl.cc
+    )
 
 set(ofdm_sources "${ofdm_sources}" PARENT_SCOPE)
 if(NOT ofdm_sources)

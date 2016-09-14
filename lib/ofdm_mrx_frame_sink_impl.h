@@ -53,6 +53,7 @@ namespace gr {
 
       gr_complex * d_derotated_output;  // Pointer to output stream to send deroated symbols out
       std::vector<gr_complex*> d_derotated_outputs;
+      std::vector<gr_complex*> d_notderotated_outputs;
 
       std::vector<gr_complex>    d_sym_position;
       std::vector<char>          d_sym_value_out;
@@ -76,8 +77,8 @@ namespace gr {
 
       bool header_ok()
       {
-	// confirm that two copies of header info are identical
-	return ((d_header >> 16) ^ (d_header & 0xffff)) == 0;
+	   // confirm that two copies of header info are identical
+	   return ((d_header >> 16) ^ (d_header & 0xffff)) == 0;
       }
 
       char slicer(const gr_complex x);

@@ -57,6 +57,8 @@ class ofdm_multichannel_receiver(gr.top_block, Qt.QWidget):
         # Blocks
         ##################################################
 
+        options.bandwidth = 100000000/16
+
         if(options.rx_freq is not None):
             self.source = uhd_receiver(options.args,
                                        options.bandwidth, options.rx_freq,
@@ -118,10 +120,11 @@ class ofdm_multichannel_receiver(gr.top_block, Qt.QWidget):
 
 def main(top_block_cls=ofdm_multichannel_receiver, options=None):
 
-    global n_rcvd, n_right
+    global n_rcvd, n_right, printout
 
     n_rcvd = 0
     n_right = 0
+    printout = False
 
     def rx_callback(ok, payload):
         global n_rcvd, n_right
@@ -129,7 +132,8 @@ def main(top_block_cls=ofdm_multichannel_receiver, options=None):
         (pktno,) = struct.unpack('!H', payload[0:2])
         if ok:
             n_right += 1
-        print "ok: %r \t pktno: %d \t n_rcvd: %d \t n_right: %d" % (ok, pktno, n_rcvd, n_right)
+        if printout:
+            print "ok: %r \t pktno: %d \t n_rcvd: %d \t n_right: %d" % (ok, pktno, n_rcvd, n_right)
 
         if 0:
             printlst = list()
@@ -140,8 +144,9 @@ def main(top_block_cls=ofdm_multichannel_receiver, options=None):
                 printlst.append(t)
             printable = ''.join(printlst)
 
-            print printable
-            print "\n"
+            if printout:
+                print printable
+                print "\n"
 
     ################################################
     # SETUP options

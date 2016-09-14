@@ -135,8 +135,15 @@ unsigned int ofdm_mrx_frame_sink_impl::demapper(gr_vector_const_void_star &input
                           // Output if connected
                           if(d_derotated_outputs[c] != NULL)
                           {
+                            // Equalized signal
                             gr_complex *o = d_derotated_outputs[c];
                             o[i] = sigrots[c];
+                            }
+                          if(d_notderotated_outputs[c] != NULL)
+                          {
+                            // Unequalized signal
+                            gr_complex *o_org = d_notderotated_outputs[c];
+                            o_org[i] = inChannel[d_subcarrier_map[i]];
                           }
                         }
 
@@ -248,10 +255,6 @@ ofdm_mrx_frame_sink_impl::ofdm_mrx_frame_sink_impl(const std::vector<gr_complex>
         d_eq_gain(0.05),
         d_sink_number(1)
 {
-        std::cout<<"sink_number: "<<d_sink_number<<'\n';
-
-
-
         // Setup Message Port
         message_port_register_out(pmt::mp("packet"));
 
@@ -343,7 +346,7 @@ ofdm_mrx_frame_sink_impl::set_sym_value_out(const std::vector<gr_complex> &sym_p
 void
 ofdm_mrx_frame_sink_impl::send_message(char messages_data[MAX_PKT_LEN], int length)
 {
-    std::cout<<"Creator: "<<d_sink_number<<"\n";
+    std::cout<<"New Packet From Creator: "<<d_sink_number<<"\n";
     char st[2];
     sprintf(st, "%d", d_sink_number);// Add marker to show what sink message came from
     std::string str(st);
@@ -361,27 +364,33 @@ ofdm_mrx_frame_sink_impl::work(int noutput_items,
                            gr_vector_const_void_star &input_items,
                            gr_vector_void_star &output_items)
 {
-        const char *sig = (const char*) input_items[0];
-        // const gr_complex *in = (const gr_complex*)input_items[0];
-        // const gr_complex *in2 = (const gr_complex*)input_items[1];
+        const char *sig = (const char*) input_items[0];// Flag
         unsigned int j = 0;
-        unsigned int bytes=0;
+        unsigned int bytes = 0;
 
         // If the output is connected, send it the derotated symbols
         d_derotated_outputs.clear();// reset pointers
+        d_notderotated_outputs.clear();// reset pointers
         if(output_items.size() >= 1)
         {
                 d_derotated_output = (gr_complex *)output_items[0];
                 for (size_t k=0;k<output_items.size();k++)
+                {
                   d_derotated_outputs.push_back((gr_complex *)output_items[k]);
+                  d_notderotated_outputs.push_back(NULL);
+                }
         }
         else
         {
                 d_derotated_output = NULL;
                 for (size_t k=0;k<output_items.size();k++)
+                {
                   d_derotated_outputs.push_back(NULL);
+                  d_notderotated_outputs.push_back(NULL);
+                }
         }
 
+        // BEGIN STATE MACHINE
         if(VERBOSE)
                 fprintf(stderr,">>> Entering state machine\n");
 

@@ -31,6 +31,8 @@ endif()
 GR_PYTHON_INSTALL(
     FILES
     __init__.py
+    gen_preamble.py
+    packet_process.py
     DESTINATION ${GR_PYTHON_DIR}/ofdm
 )
 
@@ -43,3 +45,4 @@ set(GR_TEST_TARGET_DEPS gnuradio-ofdm)
 set(GR_TEST_PYTHON_DIRS ${CMAKE_BINARY_DIR}/swig)
 GR_ADD_TEST(qa_ofdm_frame_sink ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/qa_ofdm_frame_sink.py)
 GR_ADD_TEST(qa_ofdm_mrx_frame_sink ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/qa_ofdm_mrx_frame_sink.py)
+#GR_ADD_TEST(qa_frame_logger ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/qa_frame_logger.py)
