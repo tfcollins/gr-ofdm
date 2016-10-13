@@ -1,4 +1,5 @@
+codegen
 build
 *.pyc
 *.dat
-
+*.txt

@@ -8,11 +8,13 @@ global n_rcvd, n_right, printout
 
 n_rcvd = 0
 n_right = 0
-printout = False
+# printout = True
 
-def rx_callback(ok, payload):
+def rx_callback(ok, payload, printout):
     global n_rcvd, n_right
     n_rcvd += 1
+    if len(payload)==0:# invalid packet length
+        return
     (pktno,) = struct.unpack('!H', payload[0:2])
     if ok:
         n_right += 1
@@ -34,19 +36,18 @@ def rx_callback(ok, payload):
 
 class _queue_watcher_thread(_threading.Thread):
     # def __init__(self, rcvd_pktq, callback):
-    def __init__(self, rcvd_pktq):
+    def __init__(self, rcvd_pktq, print_output):
         _threading.Thread.__init__(self)
         self.setDaemon(1)
         self.rcvd_pktq = rcvd_pktq
         # self.callback = callback
         # self.callback = rx_callback
-        print "start called"
+        self.print_output = print_output
         self.keep_running = True
         self.start()
 
 
     def run(self):
-        print "Run called"
         while self.keep_running:
             # Take packet off queue
             # print "Pre dequeue"
@@ -54,8 +55,8 @@ class _queue_watcher_thread(_threading.Thread):
             msg = self.rcvd_pktq.delete_head()
             # print "Post dequeue"
             # Decode packet
-            ok, payload = ofdm_packet_utils.unmake_packet(msg.to_string())
+            ok, payload = ofdm_packet_utils.unmake_packet(msg.to_string(),)
             # Send to callback
-            rx_callback(ok, payload)
+            rx_callback(ok, payload, self.print_output)
             # if self.callback:
                 # self.callback(ok, payload)

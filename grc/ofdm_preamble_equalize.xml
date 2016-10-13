@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+<block>
+  <name>preamble_equalize</name>
+  <key>ofdm_preamble_equalize</key>
+  <category>ofdm</category>
+  <import>import ofdm</import>
+  <make>ofdm.preamble_equalize($fft_length, $cplen, $occupied_carriers)</make>
+
+  <param>
+      <name>Occupied Carriers</name>
+      <key>occupied_carriers</key>
+      <type>int</type>
+  </param>
+  <param>
+      <name>FFT Length</name>
+      <key>fft_length</key>
+      <type>int</type>
+  </param>
+  <param>
+      <name>CP Length</name>
+      <key>cplen</key>
+      <type>int</type>
+  </param>
+
+  <sink>
+      <name>sig</name>
+      <type>complex</type>
+      <vlen>$fft_length</vlen>
+  </sink>
+  <sink>
+      <name>est</name>
+      <type>complex</type>
+      <vlen>$occupied_carriers</vlen>
+  </sink>
+  <sink>
+      <name>carrier_est</name>
+      <type>int</type>
+  </sink>
+  
+  <source>
+      <name>corrected</name>
+      <type>complex</type>
+      <vlen>$occupied_carriers</vlen>
+  </source>
+
+</block>

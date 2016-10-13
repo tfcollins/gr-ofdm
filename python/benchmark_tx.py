@@ -38,7 +38,9 @@ class my_top_block(gr.top_block):
         gr.top_block.__init__(self)
 
         if(options.tx_freq is not None):
-            options.bandwidth = 100000000/16
+            options.bandwidth = 10000000/2
+            #options.bandwidth = 100000000/16
+            print options.bandwidth
             self.sink = uhd_transmitter(options.args,
                                         options.bandwidth, options.tx_freq,
                                         options.lo_offset, options.tx_gain,

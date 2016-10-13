@@ -65,6 +65,13 @@ ofdm_mrx_frame_sink_impl::enter_have_sync()
         d_freq = 0.0;
         d_phase = 0.0;
         fill(d_dfe.begin(), d_dfe.end(), gr_complex(1.0,0.0));
+
+        // Reset header storage
+        for (int i=0; i<d_unequalized_header.size(); i++)
+        {
+            fill(d_unequalized_header[i].begin(), d_unequalized_header[i].end(), gr_complex(0.0,0.0));
+            fill(d_chan_est[i].begin(), d_chan_est[i].end(), gr_complex(0.0,0.0));
+        }
 }
 
 inline void
@@ -99,11 +106,16 @@ ofdm_mrx_frame_sink_impl::slicer(const gr_complex x)
                         min_index = j;
                 }
         }
+
         return d_sym_value_out[min_index];
 }
 
 unsigned int ofdm_mrx_frame_sink_impl::demapper(gr_vector_const_void_star &input_items, char *out)
 {
+
+        // Strategy
+        // When in header not found state, save all non-rotated data so when determine that we have a good header we can
+        // do our channel estimation asynchronously
 
         size_t num_outputs = input_items.size()-1;
         unsigned int i=0, bytes_produced=0;
@@ -114,24 +126,24 @@ unsigned int ofdm_mrx_frame_sink_impl::demapper(gr_vector_const_void_star &input
         carrier = gr_expj(d_phase);
 
         gr_complex accum_error = 0.0;
-        //while(i < d_occupied_carriers) {
-        while(i < d_subcarrier_map.size()) {
-                if(d_nresid > 0) {
+        while(i < d_subcarrier_map.size()) { // Work across all data subcarriers
+
+                if(d_nresid > 0)
+                {
                         d_partial_byte |= d_resid;
                         d_byte_offset += d_nresid;
                         d_nresid = 0;
                         d_resid = 0;
                 }
 
-                //while((d_byte_offset < 8) && (i < d_occupied_carriers)) {
                 while((d_byte_offset < 8) && (i < d_subcarrier_map.size())) {
-                        //gr_complex sigrot = in[i]*carrier*d_dfe[i];
 
                         // gr_complex sigrot = in[d_subcarrier_map[i]]*carrier*d_dfe[i];
                         for (size_t c=0; c<num_outputs; c++)
                         {
-                          inChannel = (gr_complex*) input_items[c+1];
+                          inChannel = (gr_complex*) input_items[c+1]; // First input is flag, so we must offset
                           sigrots[c] = inChannel[d_subcarrier_map[i]]*carrier*d_dfe[i];
+
                           // Output if connected
                           if(d_derotated_outputs[c] != NULL)
                           {
@@ -145,21 +157,28 @@ unsigned int ofdm_mrx_frame_sink_impl::demapper(gr_vector_const_void_star &input
                             gr_complex *o_org = d_notderotated_outputs[c];
                             o_org[i] = inChannel[d_subcarrier_map[i]];
                           }
+                          // Add to header
+                          d_unequalized_header[c][i] = inChannel[d_subcarrier_map[i]];
                         }
 
                         // REMAINING IS ONLY TO MAINTAIN DFE & CARRIER ESTIMATES
-                        char bits = slicer(sigrots[0]);
+                        char bits = slicer(sigrots[0]); // Demod symbol only from first input
 
                         gr_complex closest_sym = d_sym_position[bits];
+
+                        // Generate channel estimates on each channel (TFC)
+                        for (size_t c=0; c<num_outputs; c++)
+                            d_chan_est[c][i] = sigrots[c]/closest_sym;
 
                         accum_error += sigrots[0] * conj(closest_sym);
 
                         // FIX THE FOLLOWING STATEMENT
-                        if(norm(sigrots[0])> 0.001)
+                        if(norm(sigrots[0])> 0.001) // Update dfe if signal is non-zero
                                 d_dfe[i] +=  d_eq_gain*(closest_sym/sigrots[0]-d_dfe[i]);
 
-                        i++;
+                        i++;// Next data subcarrier
 
+                        // Form bytes from bits we have
                         if((8 - d_byte_offset) >= d_nbits) {
                                 d_partial_byte |= bits << (d_byte_offset);
                                 d_byte_offset += d_nbits;
@@ -255,8 +274,9 @@ ofdm_mrx_frame_sink_impl::ofdm_mrx_frame_sink_impl(const std::vector<gr_complex>
         d_eq_gain(0.05),
         d_sink_number(1)
 {
-        // Setup Message Port
+        // Setup Message Ports
         message_port_register_out(pmt::mp("packet"));
+        message_port_register_out(pmt::mp("header_dfe"));
 
         std::string carriers = "FE7F";
 
@@ -318,6 +338,14 @@ ofdm_mrx_frame_sink_impl::ofdm_mrx_frame_sink_impl(const std::vector<gr_complex>
 
         set_sym_value_out(sym_position, sym_value_out);
 
+        // added
+        d_unequalized_header.resize(num_inputs);
+        d_chan_est.resize(num_inputs);
+        for (int i=0; i<num_inputs; i++)
+        {
+            d_unequalized_header[i].resize(occupied_carriers);
+            d_chan_est[i].resize(occupied_carriers);
+        }
         enter_search();
 }
 
@@ -346,7 +374,7 @@ ofdm_mrx_frame_sink_impl::set_sym_value_out(const std::vector<gr_complex> &sym_p
 void
 ofdm_mrx_frame_sink_impl::send_message(char messages_data[MAX_PKT_LEN], int length)
 {
-    std::cout<<"New Packet From Creator: "<<d_sink_number<<"\n";
+    // std::cout<<"New Packet From Creator: "<<d_sink_number<<"\n";
     char st[2];
     sprintf(st, "%d", d_sink_number);// Add marker to show what sink message came from
     std::string str(st);
@@ -357,6 +385,33 @@ ofdm_mrx_frame_sink_impl::send_message(char messages_data[MAX_PKT_LEN], int leng
     // // Create message and send out port
     pmt::pmt_t msg = pmt::string_to_symbol(str);
     message_port_pub(pmt::mp("packet"), msg);
+}
+
+void
+ofdm_mrx_frame_sink_impl::send_message_dfe()
+{
+    // std::cout<<"Creating d_dfe msg\n";
+    // Convert to vector of pmt
+    pmt::pmt_t full_vec_ant = pmt::make_vector(d_chan_est.size(),
+        pmt::from_complex(d_chan_est[0][0]));
+    for (int o=0; o<d_chan_est.size(); o++)
+    {
+        // Built each antenna vector
+        pmt::pmt_t vec_ant = pmt::make_vector(d_chan_est[0].size(),pmt::from_complex(gr_complex(0,0)));
+        for (int j=0; j<d_chan_est[0].size(); j++)
+            pmt::vector_set(vec_ant, j, pmt::from_complex(d_chan_est[o][j]));
+
+        // Add to full set
+        pmt::vector_set(full_vec_ant, o, vec_ant);
+    }
+    message_port_pub(pmt::mp("header_dfe"), full_vec_ant);
+    // std::cout << "Sent Message" << std::endl;
+
+    // // Convert to any
+    // boost::any a0 = d_unequalized_header;//d_dfe;
+    //
+    // pmt::pmt_t msg = pmt::make_any(a0);
+    // message_port_pub(pmt::mp("header_dfe"), msg);
 }
 
 int
@@ -421,12 +476,17 @@ ofdm_mrx_frame_sink_impl::work(int noutput_items,
                         d_header = (d_header << 8) | (d_bytes_out[j] & 0xFF);
                         j++;
 
+                        // Have enough bytes for header
                         if(++d_headerbytelen_cnt == HEADERBYTELEN) {
                                 if(VERBOSE)
                                         fprintf(stderr, "got header: 0x%08x\n", d_header);
 
                                 // we have a full header, check to see if it has been received properly
                                 if(header_ok()) {
+
+                                        // Send header dfe info out
+                                        send_message_dfe();
+
                                         enter_have_header();
 
                                         if(VERBOSE)
@@ -437,6 +497,7 @@ ofdm_mrx_frame_sink_impl::work(int noutput_items,
                                         }
 
                                         if(d_packetlen_cnt == d_packetlen) {
+
                                                 // Make tags packet and leave enable whitening
                                                 message::sptr msg = message::make(0, d_packet_whitener_offset, 0, d_packetlen);
                                                 // Add packet data

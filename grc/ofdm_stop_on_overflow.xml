@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<block>
+  <name>stop_on_overflow</name>
+  <key>ofdm_stop_on_overflow</key>
+  <category>ofdm</category>
+  <import>import ofdm</import>
+  <make>ofdm.stop_on_overflow()</make>
+
+  <sink>
+    <name>in</name>
+    <type>complex</type>
+  </sink>
+
+</block>

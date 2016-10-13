@@ -71,4 +71,8 @@
 		<name>packet</name>
 		<type>message</type>
 	</source>
+	<source>
+		<name>header_dfe</name>
+		<type>message</type>
+	</source>
 </block>

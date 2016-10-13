@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<block>
+  <name>Eval Channel Est</name>
+  <key>ofdm_eval_chan_est</key>
+  <category>[ofdm]</category>
+  <import>import ofdm</import>
+  <import>import pmt</import>
+  <make>ofdm.eval_chan_est()</make>
+
+  <callback>chan_est($msg)</callback>
+
+  <sink>
+		<name>chan_est</name>
+		<type>message</type>
+	</sink>
+
+</block>

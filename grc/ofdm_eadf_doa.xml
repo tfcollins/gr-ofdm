@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<block>
+  <name>eadf_doa</name>
+  <key>ofdm_eadf_doa</key>
+  <category>ofdm</category>
+  <import>import ofdm</import>
+  <import>import pmt</import>
+  <make>ofdm.eadf_doa($matfile, $num_ants, $fft_res)</make>
+
+  <callback>Chan_Est($msg)</callback>
+
+  <param>
+      <name>Mat File</name>
+      <key>matfile</key>
+      <type>string</type>
+  </param>
+  <param>
+      <name>Num Antennas</name>
+      <key>num_ants</key>
+      <type>int</type>
+  </param>
+  <param>
+      <name>FFT Resolution</name>
+      <key>fft_res</key>
+      <type>int</type>
+  </param>
+
+  <sink>
+    <name>Chan_Est</name>
+    <type>message</type>
+  </sink>
+  <source>
+    <name>Azimuth</name>
+    <type>float</type>
+  </source>
+
+</block>

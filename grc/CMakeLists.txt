@@ -20,5 +20,10 @@ install(FILES
     ofdm_ofdm_frame_sink.xml
     ofdm_ofdm_mrx_frame_sink.xml
     #ofdm_frame_logger.xml
-    DESTINATION share/gnuradio/grc/blocks
+    ofdm_eval_chan_est.xml
+    ofdm_frame_acquisition.xml
+    ofdm_preamble_equalize.xml
+    ofdm_mc_recover.xml
+    ofdm_stop_on_overflow.xml
+    ofdm_eadf_doa.xml DESTINATION share/gnuradio/grc/blocks
 )

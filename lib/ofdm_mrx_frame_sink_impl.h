@@ -55,6 +55,10 @@ namespace gr {
       std::vector<gr_complex*> d_derotated_outputs;
       std::vector<gr_complex*> d_notderotated_outputs;
 
+
+      std::vector<std::vector<gr_complex> > d_unequalized_header;
+      std::vector<std::vector<gr_complex> > d_chan_est;
+
       std::vector<gr_complex>    d_sym_position;
       std::vector<char>          d_sym_value_out;
       std::vector<gr_complex>    d_dfe;
@@ -74,6 +78,7 @@ namespace gr {
       void enter_search();
       void enter_have_sync();
       void enter_have_header();
+      void send_message_dfe();
 
       bool header_ok()
       {

@@ -25,5 +25,7 @@ install(FILES
     ofdm_frame_sink.h
     ofdm_mrx_frame_sink.h
     #frame_logger.h
-    DESTINATION include/ofdm
+    eval_chan_est.h
+    frame_acquisition.h
+    preamble_equalize.h DESTINATION include/ofdm
 )

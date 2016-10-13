@@ -1,0 +1,71 @@
+<block>
+  <name>OFDM Mutichannel Recover</name>
+  <key>ofdm_mc_recover</key>
+  <category>ofdm</category>
+  <import>import ofdm</import>
+  <make>ofdm.ofdm_mc_recover(
+    cp_len=$cp_len,
+    fft_len=$fft_len,
+    max_fft_shift=$max_fft_shift,
+    occupied_carriers=$occupied_carriers,
+    ports=$ports,
+)</make>
+  <callback>set_cp_len($cp_len)</callback>
+  <callback>set_fft_len($fft_len)</callback>
+  <callback>set_max_fft_shift($max_fft_shift)</callback>
+  <callback>set_occupied_carriers($occupied_carriers)</callback>
+  <callback>set_ports($ports)</callback>
+  <param>
+    <name>CP Length</name>
+    <key>cp_len</key>
+    <value>32</value>
+    <type>raw</type>
+  </param>
+  <param>
+    <name>FFT Length</name>
+    <key>fft_len</key>
+    <value>64</value>
+    <type>raw</type>
+  </param>
+  <param>
+    <name>Max FFT Shift</name>
+    <key>max_fft_shift</key>
+    <value>4</value>
+    <type>raw</type>
+  </param>
+  <param>
+    <name>Occupied Carriers</name>
+    <key>occupied_carriers</key>
+    <value>48</value>
+    <type>raw</type>
+  </param>
+  <param>
+    <name>RX Chains</name>
+    <key>ports</key>
+    <value>2</value>
+    <type>raw</type>
+  </param>
+  <sink>
+    <name>in0</name>
+    <type>complex</type>
+    <vlen>1</vlen>
+    <nports>$ports</nports>
+  </sink>
+
+  <source>
+    <name>const0</name>
+    <type>complex</type>
+    <vlen>$occupied_carriers</vlen>
+    <nports>$ports</nports>
+  </source>
+  <source>
+    <name>packet</name>
+    <type>message</type>
+  </source>
+  <source>
+    <name>header_dfe</name>
+    <type>message</type>
+  </source>
+
+  <doc>Travis Collins</doc>
+</block>
